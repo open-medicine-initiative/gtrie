@@ -19,14 +19,15 @@ module.exports = function(config) {
       'karma-coverage',
       'karma-systemjs',
       'karma-phantomjs-launcher',
+      'karma-chrome-launcher',
       'karma-chai'
     ],
 
     // start these browsers
     // available browser launchers: https://npmjs.org/browse/keyword/karma-launcher
     browsers: [
-      //'Chrome' // export CHROME_BIN=/usr/bin/chromium-browser
-      'PhantomJS'
+      'Chrome' // export CHROME_BIN=/usr/bin/chromium-browser
+      //,'PhantomJS'
     ],
 
     // test results reporter to use

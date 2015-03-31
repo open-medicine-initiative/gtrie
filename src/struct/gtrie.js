@@ -6,29 +6,33 @@ import Immutable from 'immutable';
 export class GTrie {
 
   constructor () {
-    this.roots = Immutable.Map();
     this.allValues = Immutable.Map(); // Immutable.Maps sets to their nodes
+    this.root = new Node(this);
   }
 
   nodeFor(value){
-    return this.allValues.get(value);
+    if(this.allValues.has(value)){
+      return this.allValues.get(value);
+    }else {
+      var node = new Node(this, value);
+      this.allValues = this.allValues.set(value, node);
+      return node;
+    }
   }
 
-  sequence ( start ) {
-    // a new sequence starts at a known root
+  sequencecount (){
+    return this.root.counter;
+  }
 
-
-    // or defines a new one
-
-
-    return new Sequence();
+  sequence ( ) {
+     return new Sequence(this.root, this);
   }
 }
 
 class Node {
 
-  constructor (tree, val) {
-    this.out = Immutable.Map();
+  constructor (tree, val = Immutable.Set()) {
+    this.out = Immutable.Map(); // projection from any => Link
     this.val = val;
     this.counter = 1;
     this.tree = tree;
@@ -47,12 +51,9 @@ class Node {
 
       // the node might have been created in another path (a permutation of the input values)
       var node = this.tree.nodeFor(newValue);
-      if (!node){
-        // or it is entirely new to the tree
-        node = new Node(this.tree, newValue);
-      }
-      this.out.set(input)
 
+      this.out = this.out.set(input, new Link(this, node));
+      return node;
 
     }
   }
@@ -81,20 +82,19 @@ class Link {
  */
 class Sequence {
 
-  constructor ( ) {
-    this.values = new Set();
-    this.node = undefined;
+  constructor ( root , tree) {
+    this.inputs = [];
+    this.node = root;
+    this.owner = tree;
   }
 
-  asSet(){
-    return this.values;
+  allInputs(){
+    return this.inputs;
   }
 
-  next ( input ) {
-    // adding another value will increment all counters
-    // on the path
-    this.node = this.node.next(input);
-    this.values = this.values.add(input);
+  input ( input ) {
+    this.inputs.push(input); // record this input
+    this.node = this.node.next(owner, input);
     return this;
   }
 
