@@ -1,0 +1,19 @@
+# IDE files project settings #
+*.iml
+*.ipr
+*.iws
+**/.idea/*
+**/.idea
+
+**/.classpath
+**/.project
+**/.settings/org.eclipse.core.resources.prefs
+**/.settings/org.eclipse.jdt.core.prefs
+**/.settings/org.eclipse.m2e.core.prefs
+
+#generated
+*.log
+
+# dependencies #
+jspm_packages
+node_modules

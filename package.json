@@ -1,0 +1,46 @@
+{
+  "name": "gtrie",
+  "version": "1.0.3",
+  "description": "Data structure used to predict future inputs from inputs already seen",
+  "author": "OpenMediAid",
+  "devDependencies": {
+    "chai": "^2.2.0",
+    "es6-module-loader": "^0.16.1",
+    "gulp": "^3.8.11",
+    "jspm": "^0.15.0",
+    "karma": "~0.12.24",
+    "karma-chai": "^0.1.0",
+    "karma-coverage": "~0.2.6",
+    "karma-espower-preprocessor": "0.0.3",
+    "karma-mocha": ">=0.1.9",
+    "karma-phantomjs-launcher": "~0.1.4",
+    "karma-systemjs": "^0.2.1",
+    "phantomjs-polyfill": "0.0.1",
+    "power-assert": "^0.10.2",
+    "systemjs": "^0.16.4"
+  },
+  "dependencies": {},
+  "jspm": {
+    "directories": {
+      "baseURL": "dist",
+      "lib": "src",
+      "packages": "jspm_packages"
+    },
+    "configFile": "src/system.config.js",
+    "dependencies": {
+      "immutable": "npm:immutable@^3.7.1"
+    },
+    "devDependencies": {
+      "babel": "npm:babel@^4.7.16",
+      "babel-runtime": "npm:babel-runtime@^4.7.16"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/open-medicine-initiative/gtrie.git"
+  },
+  "scripts": {
+    "postinstall": "jspm install",
+    "test": "./gulp.sh recompile && ./node_modules/karma/bin/karma start --single-run --browsers PhantomJS"
+  }
+}
