@@ -1,23 +1,36 @@
 import Immutable from 'immutable';
 
 /**
+ *  This graph like data structure can be used to predict the next input values based on the inputs
+ *  already seen. Prediction is made by recording the sequences of values entered by clients
+ *  to keep track of their overall distribution. Each input value is treated as the successor of all
+ *  preceding inputs coming from the same sequence (= same client).
  *
+ *  A sequence is an ordered collection of inputs ŕecorded in the same order as they occurred. Each node
+ *  in the structure is a associated with exactly one distinct set of values. A node can have multiple
+ *  outgoing and incoming edges. More precisely: A node may have as many
+ *   a.) outgoing edges as there are distinct supersets with a cardinal value of +1 of the nodes value
+ *   b.) incoming edges as there are distinct subsets with a cardinal value of -1 of the nodes value
+ *
+ *  Each node has a counter representing the number of visits made to that node. Each edge has a counter
+ *  used to count the number of traverses.
  */
 export class GTrie {
 
   constructor () {
-    this.allValues = Immutable.Map(); // Immutable.Maps sets to their nodes
-    this.root = new Node(this);
-  }
-
-  nodeFor(value){
-    if(this.allValues.has(value)){
-      return this.allValues.get(value);
-    }else {
-      var node = new Node(this, value);
-      this.allValues = this.allValues.set(value, node);
-      return node;
-    }
+    // Maps node values to their nodes
+    this.valueToNode = Immutable.Map();
+    var factory = (value) => {
+      if ( this.valueToNode.has( value ) ) {
+        return this.valueToNode.get( value );
+      } else {
+        var node = new Node(value, factory );
+        this.valueToNode = this.valueToNode.set( value, node );
+        return node;
+      }
+    };
+    // The root node contains the empty set and is the entry point for tree operations
+    this.root = new Node(Immutable.Set(), factory);
   }
 
   sequencecount (){
@@ -25,17 +38,17 @@ export class GTrie {
   }
 
   sequence ( ) {
-     return new Sequence(this.root, this);
+     return new Sequence(this.root);
   }
 }
 
 class Node {
 
-  constructor (tree, val = Immutable.Set()) {
+  constructor (val = Immutable.Set(), factory = (value) => new Node(value)) {
     this.out = Immutable.Map(); // projection from any => Link
     this.val = val;
     this.counter = 1;
-    this.tree = tree;
+    this.getNode = factory;
   }
 
   next ( input ) {
@@ -47,14 +60,13 @@ class Node {
     }
     else{
       // input is new in this branch
-      let newValue = val.add(input);
+      let newValue = this.val.add(input);
 
       // the node might have been created in another path (a permutation of the input values)
-      var node = this.tree.nodeFor(newValue);
+      var node = this.getNode(newValue);
 
       this.out = this.out.set(input, new Link(this, node));
       return node;
-
     }
   }
 
@@ -82,10 +94,9 @@ class Link {
  */
 class Sequence {
 
-  constructor ( root , tree) {
+  constructor ( root) {
     this.inputs = [];
     this.node = root;
-    this.owner = tree;
   }
 
   allInputs(){
@@ -94,7 +105,7 @@ class Sequence {
 
   input ( input ) {
     this.inputs.push(input); // record this input
-    this.node = this.node.next(owner, input);
+    this.node = this.node.next(input);
     return this;
   }
 
