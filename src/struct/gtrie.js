@@ -62,11 +62,13 @@ export class GTrie {
  */
 class Sequence {
 
+  // BD: we discussed that depth is actually a property of the tree and not the sequence
   constructor(root, depth) {
     this.inputs = [];
-    this.prediction = {input: 'no prediction', score: 0};
+    this.prediction = {input: 'no prediction', score: 0}; // should be a parameter using a default value
     this.tree = { root: root, depth: depth};
     this.predictingSubsets = Immutable.Set();
+    this.subsetGenerator =  new SubsetGenerator();
   }
 
 
@@ -96,8 +98,7 @@ class Sequence {
 
     // update tree:
     // first receive all subsets of the set of inputs that contain the last input are of cardinality of at most depth +1
-    var asSet = (obj) => { return Immutable.Set().add(obj)};
-    var Subsets = new SubsetGenerator().subsetsBrute(this.inputs, subsetcardinality, asSet(input));
+    var Subsets = this.subsetGenerator.build(this.inputs, subsetcardinality, Immutable.Set.of(input));
 
 
     for (var subset of Subsets) {
@@ -182,9 +183,11 @@ class Node {
   // When a node gets activated each of its parents' counters increase by one and their respective links to this node
   // aswell
   activate() {
+    // iterate through items in this nodes value
+    // and construct super sets of lower (-1) cardinality
     for (var input of this.val) {
-      var parentvalue = this.val.filter(element => element !== input);
-      this.getNode(parentvalue).next(input);
+      var superset = this.val.filter(element => element !== input);
+      this.getNode(superset).next(input);
     }
   }
 
@@ -254,35 +257,68 @@ class Edge {
 
 
 /**
+ *
  * There are several ways to extract from an array of entries all subsets up to a certain cardinality that contain a
  * specific element. The following class shall collect a few of them. The first "subsetsBrute" is the agnostic brute
  * force approach.
+ *
+ * BD: agnostic? Your mother is agnostic! Please improve these descriptions.
+ *
  */
+
+class SubsetGenerationStrategies{
+
+  // BD: This algorithms lacks documentation
+  //, Please describe each parameter and its function
+  // as well as the major steps of the algorithm
+  static bruteForce(aSet, cardinality, base) {
+    //BD: It does not need to be immutable! Immutability refers to a different property of data structures,
+    // i.e. that they can not be changed => any modification results in a new structure.
+    // What you refer to is called "set semantics" of a collection, i.e. do not allow duplicates.
+    var subsets= Immutable.Set().asMutable(); // needs to be immutable to avoid repetitions
+    var subsetsgen = (subsetcardinality, subset) => {
+      if (subsetcardinality > 0) {
+        for (var j=0; j< aSet.length; j++) {
+          if (!subset.contains(aSet[j])) {
+            var newsubset = subset.slice().add(aSet[j]);
+            subsets=subsets.add(newsubset);
+            subsetsgen(subsetcardinality - 1, newsubset);
+          }
+        }
+      }
+    };
+    subsetsgen(cardinality, base);
+    subsets=subsets.add(base);
+    return subsets;
+  };
+
+}
+
 
 class SubsetGenerator {
 
-  constructor(){
-
+  /**
+   * A subset generator produces a set of subsets from a given set of elements.
+   *
+   * @param strategy
+   */
+  constructor(strategy = SubsetGenerationStrategies.bruteForce){
+     this.strategy = strategy;
   }
 
-  subsetsBrute (aSet, subsetcardinality, subset) {
-  var Subsets= Immutable.Set(); // needs to be immutable to avoid repetitions
-  var subsetsgen = (subsetcardinality, subset) => {
-    if (subsetcardinality > 0) {
+  // BD: Please complete description of this interface.
+  /**
+   *
+   * @param sourceSet
+   * @param cardinality
+   * @param base  The items in base are included in any subset produced. The size of base must be smaller than
+   * the specified cardinality
+   * @returns {*}
+   */
+  build(sourceSet, cardinality, base) {
+    return this.strategy(sourceSet, cardinality, base);
+  }
 
-      for (var j=0; j< aSet.length; j++) {
-        if (!subset.contains(aSet[j])) {
-          var newsubset = subset.slice().add(aSet[j]);
-          Subsets=Subsets.add(newsubset);
-          subsetsgen(subsetcardinality - 1, newsubset);
-        }
-      }
-    }
-  };
-  subsetsgen(subsetcardinality, subset);
-  Subsets=Subsets.add(subset);
-  return Subsets;
-};
 
 }
 
