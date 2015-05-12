@@ -10,7 +10,7 @@ import Immutable from 'immutable';
  *  preceding inputs coming from the same sequence (= same client).
  *
  *  A sequence is an ordered collection of inputs ŕecorded in the same order as they occurred. Each node
- *  in the structure is a associated with exactly one distinct set of values up to cardinality 4. A node
+ *  in the structure is a associated with exactly one distinct set of values up to cardinality 'depth'+1. A node
  *  can have multiple outgoing and incoming edges. More precisely: A node may have as many
  *   a.) outgoing edges as there are distinct supersets with a cardinal value of +1 of the nodes value
  *   b.) incoming edges as there are distinct subsets with a cardinal value of -1 of the nodes value
@@ -70,7 +70,7 @@ class Sequence {
 
   constructor(root, depth) {
     this.inputs = [];
-    this.prediction = {input: 'no prediction', score: 0}; // should be a parameter using a default value
+    this.prediction = {input: 'no prediction', score: 0, size : 0}; // should be a parameter using a default value
     this.tree = {root: root, depth: depth};
     this.predictingSubsets = Immutable.Set();
     this.subsetGenerator = new SubsetGenerator();
@@ -89,16 +89,23 @@ class Sequence {
       // obtain prediction of the subset's node
       var nodePrediction = this.tree.root.getNode(subset).predict().getprediction(0);
 
-      // If desiredwe remember each potentially vital predicting subset
+      // If desired we remember each potentially vital predicting subset
       if (remember === true && nodePrediction.score > 0
-      && this.inputs.indexOf(nodePrediction.input) === -1) {
+        && this.inputs.indexOf(nodePrediction.input) === -1) {
         this.predictingSubsets = this.predictingSubsets.add(subset);
       }
 
-      //if it is the current best prediction it is stored as predictor
-      if (nodePrediction.score > currentPrediction.score
-        && this.inputs.indexOf(nodePrediction.input) === -1) {
-        return {input : nodePrediction.input, score : nodePrediction.score};
+      // if it is the current best prediction it is stored as predictor. It is the best predictor, if the size of the
+      // considered subset is larger than the size of set currently used for prediciton or if its score is larger than
+      // the current best score, given that the size of the considered subset is at least the size of the
+      // subset currently used for the prediction
+      if (nodePrediction.score > 0
+        && subset.size > currentPrediction.size
+        && this.inputs.indexOf(nodePrediction.input) === -1
+        || nodePrediction.score > currentPrediction.score
+        && this.inputs.indexOf(nodePrediction.input) === -1
+        && subset.size >= currentPrediction.size) {
+        return {input: nodePrediction.input, score: nodePrediction.score, size : subset.size};
       }
       else return currentPrediction;
     }
@@ -120,23 +127,24 @@ class Sequence {
     // we remember each input value
     this.inputs.push(input);
 
-    // the new input might equal the current prediction, in that case the second best prediction is obtained
+    // the new input might equal the currently predicted input, in that case the second best prediction is obtained
     if (this.prediction.input === input) {
 
       // in case there is no second best prediciton, the current prediction is set to default
-      this.prediction = {input: 'no prediction', score: 0};
+      this.prediction = {input: 'no prediction', score: 0, size : 0};
 
       // For each subset of the users inputs the corresponding nodes prediction is checked and the best one used as
       // current prediciton
       for (var subset of this.predictingSubsets) {
 
-        // udate prediciton but do not need to remember subsets, as the come from memory
+        // udate prediciton but do not need to remember subsets, as they come from memory
         this.prediction = new this.predicitonUpdate(subset, this.prediction, false);
       }
     }
 
     // update tree:
-    // first receive all subsets of the set of inputs that contain the last input are of cardinality of at most depth +1
+    // first receive all subsets of the set of inputs that contain the last input and are of cardinality of at most
+    // subsetcardinality =depth +1. For available strategies see below.
     var Subsets = this.subsetGenerator.build(this.inputs, subsetcardinality, Immutable.Set.of(input));
 
 
@@ -156,6 +164,7 @@ class Sequence {
   }
 
   predict() {
+    //TODO: at the moment no threshold, but could set something like prediction.score> 1/inputs.length
     return this.prediction;
   }
 
@@ -224,7 +233,7 @@ class Node {
    * @param threshold The lower bound which needs to be surpassed by an input value to be considered as a reasonabel prediction
    * @returns {Predictions} An ordered collection of predictions whose values exceeds the given threshold
    */
-  predict(threshold = 0.5) {
+  predict(threshold = 0) {
     var nodevisited = this.counter;
 
     var candidates = this.outgoing
@@ -246,7 +255,7 @@ class Node {
 }
 
 /**
- * An array of predictions, engineered such that it outputs 'no prediction' whenever an empty entry is accessed
+ * An container for an array of predictions, engineered such that it outputs 'no prediction' whenever an empty entry is accessed
  */
 class Predictions {
 
@@ -294,7 +303,7 @@ class SubsetGenerationStrategies {
    * bruteForce collects all subsets that contain a specific initial set "base" and that are of cardinality at most
    * "|base|+cardinality". It builds up the subsets recursively via the method subsetsgen.
    *
-   * @param aSet is an array.
+   * @param sourceSet is an array.
    * @param base is a Set.
    * @param cardinality is the increase in cardinality from the cardinality of "base" to the cardinality of the elements
    * of the subset collection "subsets"
@@ -302,14 +311,14 @@ class SubsetGenerationStrategies {
    * base
    *
    */
-  static bruteForce(aSet, cardinality, base) {
+  static bruteForce(sourceSet, cardinality, base) {
 
 
     var subsets = Immutable.Set().asMutable();
 
     /**
      * Iteratively builds up subsets. When called and "countdown" is not equal to zero it adds a new element of the
-     * array "aSet" to the set "subset", adds the new subset to the set "subsets" and calls itself with countdown
+     * array "sourceSet" to the set "subset", adds the new subset to the set "subsets" and calls itself with countdown
      * reduced by 1 and the new increased subset "newsubset".
      *
      * @param countdown is a positive integer that determines how many times more subsetsgen shall call itself
@@ -317,9 +326,9 @@ class SubsetGenerationStrategies {
      */
     var subsetsgen = (countdown, subset) => {
       if (countdown > 0) {
-        for (var j = 0; j < aSet.length; j++) {
-          if (!subset.contains(aSet[j])) {
-            var newsubset = subset.slice().add(aSet[j]);
+        for (var j = 0; j < sourceSet.length; j++) {
+          if (!subset.contains(sourceSet[j])) {
+            var newsubset = subset.slice().add(sourceSet[j]);
             subsets.add(newsubset);
             subsetsgen(countdown - 1, newsubset);
           }
@@ -334,6 +343,27 @@ class SubsetGenerationStrategies {
     return subsets;
   }
 
+
+  /**
+   * bruteForceCapped collects all subsets that contain a specific initial set "base" and that are of cardinality at most
+   * "|base|+cardinality" and contain elements of the last elements of the sourceSet. The number of elements is
+   * specified by the integer memory. It builds up the subsets via the method bruteForce.
+   *
+   * @param sourceSet is an array.
+   * @param base is a Set.
+   * @param cardinality is the increase in cardinality from the cardinality of "base" to the cardinality of the elements
+   * of the subset collection "subsets"
+   * @param memory is a positive integer declaring the number of elements to be considered from sourceSet
+   * @returns subsets is Set of Sets, each element is at most of cardinality "|base|+cardinality" and contains the Set
+   * base
+   *
+   */
+
+  static bruteForceCapped(sourceSet, cardinality, base, memory= 10) {
+    return SubsetGenerationStrategies.bruteForce(sourceSet.slice(sourceSet.lenght - memory), cardinality, base);
+  }
+
+
 ;
 
 }
@@ -346,7 +376,7 @@ class SubsetGenerator {
    *
    * @param strategy
    */
-  constructor(strategy = SubsetGenerationStrategies.bruteForce) {
+  constructor(strategy = SubsetGenerationStrategies.bruteForceCapped) {
     this.strategy = strategy;
   }
 

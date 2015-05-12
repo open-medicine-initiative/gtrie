@@ -72,7 +72,18 @@ import {GTrie} from 'gtrie';
           var seq = testTrie.sequence().input('one');
           expect(seq.predict().input).to.equal('no prediction');
         });
+        it('The tree favours predictions based on larger sets', () => {
+          var testTrie = new GTrie();
+          var seq = testTrie.sequence().input('one').input('two').input('three').input('four');
+          var seq2 = testTrie.sequence().input('one').input('two').input('three').input('four');
+          var seq3 = testTrie.sequence().input('one').input('two').input('three').input('six');
+          var seq4 = testTrie.sequence().input('one').input('two').input('five');
+          var seq5 = testTrie.sequence().input('one').input('two').input('three');
+          expect(seq5.predict().input).to.equal('four'); // predicts four not five because the subest used for the first
+                                                         // prediction is larger although the corresponding score is lower
+        })
       });
+
     }
   )
   ;
