@@ -156,7 +156,7 @@ class Sequence {
       // if the cardinality of the subset is smaller equal depth it can be used for prediction of next input
       if (subset.size <= this.tree.depth) {
 
-        // we potentially remember the subset as being vital for the purpose of prediction
+        // Update the prediction where we potentially remember the subset as being vital for the purpose of prediction
         this.prediction = new this.predicitonUpdate(subset, this.prediction, true);
       }
     }
@@ -164,7 +164,10 @@ class Sequence {
   }
 
   predict() {
-    //TODO: at the moment no threshold, but could set something like prediction.score> 1/inputs.length
+    //TODO: at the moment threshold is adhoc (1/20),
+    // could do something like
+    // prediction.score> 1/#(expected maximal number of symptoms, that unicly characteriser an illness)
+
     return this.prediction;
   }
 
@@ -233,7 +236,7 @@ class Node {
    * @param threshold The lower bound which needs to be surpassed by an input value to be considered as a reasonabel prediction
    * @returns {Predictions} An ordered collection of predictions whose values exceeds the given threshold
    */
-  predict(threshold = 0) {
+  predict(threshold = 0.05) {
     var nodevisited = this.counter;
 
     var candidates = this.outgoing
